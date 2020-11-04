@@ -48,7 +48,8 @@ us = lsqnonlin(@(us)car_cost(us, S), us, lb, ub);
 % update trajectory
 xs = sys_traj(x0, us, S);
 
-plot(xs(1,:), xs(2,:), '-b');
+plot(xs(1,:), xs(2,:), '-b');hold on;
+plot(xs(1, end), xs(2,end), 'r*'); hold off;
 
 y = car_cost(us, S);
 J = y'*y/2;
@@ -120,6 +121,6 @@ function xs = sys_traj(x0, us, S)
 N = size(us, 2);
 xs(:,1) = x0;
 
-for k=1:N,
+for k=1:N
   xs(:, k+1) = S.f(k, xs(:,k), us(:,k), S);
 end
