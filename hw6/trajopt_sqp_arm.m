@@ -40,13 +40,59 @@ S.x0 = x0;
 S.xf = xf;
 S.xd = xd;
 
-
+%% perform optimization
 
 
 %% Functions
-% objective function to be optimize
+% objective function to be optimized
 function [f, g] = objfun(z, x0, S)
-    xs = [x0, reshape(z(1:S.N
+    % z is a vectorized [x; u] so unpack
+    xs = [x0, reshape(z(1:S.N*4), 4, S.N)];
+    us = reshape(z(4*S.N + 1:end), 2, S.N);
+    
+    f = 0;
+    for i = 1:S.N+1
+        if i < S.N+1
+            [L, Lx, Lxx, Lu, Luu] = S.L(i, xs(:,i), us(:,i),S);
+            
+            % control gradients
+            uind = S.N*4 + (i-1)*2;
+            g(uind+1:uind+S.c) = Lu;
+            
+        else
+            [L, Lx, Lxx] = S.Lf(xs(:, i), S);
+            
+        end
+        
+        f = f + L; % add the cost
+        
+        % set state gradients
+        if (i > 1)
+            xind = (i - 2) * 4;
+            g(xind+1: xind + 4) = Lx;
+        end
+        
+    end
+            
+end
+
+% implement nonlinear constraints
+function [c, ceq] = constraints(z, x0, S)
+    % unpack z
+    xs = [x0, reshape(z(1:S.N*4), 4, S.N)];
+    us = reshape(z(4*S.N + 1:end), 2, S.N);
+    
+    ceq = zeros(4*S.N, 1);
+    c = [];
+    
+    for i = 1:S.N
+        % discrete dynamics
+        ind = (i - 1) * 4; 
+        ceq(ind + 1 : ind + 4) = xs(:, i+1) - S.f(i, xs(:,i), us(:,i), S);
+        
+    end
+    
+end
 
 % arm cost (just standard quadratic cost
 function [L, Lx, Lxx, Lu, Luu] = arm_L(k, x, u, S)
