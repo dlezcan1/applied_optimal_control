@@ -20,7 +20,8 @@ S.g = 9.8;
 
 % time horizon and segments
 tf = 2; 
-S.N = 128;
+S.tf = tf;
+S.N = 50;
 S.h = tf/S.N; % time step
 
 
@@ -37,10 +38,38 @@ S.R = 0.01 * eye(2); % for u
 x0 = [pi/2; pi/4; -.5; 0]; % initial state
 
 S.x0 = x0;
-S.xf = xf;
-S.xd = xd;
 
-%% perform optimization
+
+% obstacle positions (only circles {center, radius}
+S.obstacles = {};
+S.obstacles{1} = {[pi/5; pi/5], 0.1};
+
+
+%% Optimization
+% initializations of trajectory
+us = zeros(2, S.N);
+xs = sys_traj( x0, us, S);
+
+% pack xs and us
+z = [reshape(xs(:,2:end), [], 1); reshape(us, [], 1)];
+
+% set-up optimization options and objectives
+options = optimset('GradObj','on','GradConstr', 'off', 'MaxIter', ...
+                   10000, 'MaxFunEvals', 20000, 'TolCon', 1e-5, 'TolFun', 1e-4, 'TolX', 1e-5);
+cost_fn = @ (z) objfun(z, x0, S);
+cons = @(z) constraints(z, x0, S, @plottraj);
+
+% perform the optimization
+[z, cost, exitflag, output] = fmincon(@(z) cost_fn(z), z, [], [], [], [], [], [], ...
+                                      @(z) cons(z), options);
+                                  
+xs = [x0, reshape(z(1:S.N*4), 4, [])];
+us = reshape(z(S.N*4 + 1:end), 2, []);
+
+%% Plotting
+global pc
+pc = 0; % reset the counter
+plottraj(xs, us, S);
 
 
 %% Functions
@@ -57,7 +86,7 @@ function [f, g] = objfun(z, x0, S)
             
             % control gradients
             uind = S.N*4 + (i-1)*2;
-            g(uind+1:uind+S.c) = Lu;
+            g(uind+1:uind + 2) = Lu;
             
         else
             [L, Lx, Lxx] = S.Lf(xs(:, i), S);
@@ -77,13 +106,17 @@ function [f, g] = objfun(z, x0, S)
 end
 
 % implement nonlinear constraints
-function [c, ceq] = constraints(z, x0, S)
+function [c, ceq] = constraints(z, x0, S, cb)
     % unpack z
     xs = [x0, reshape(z(1:S.N*4), 4, S.N)];
     us = reshape(z(4*S.N + 1:end), 2, S.N);
     
+    if ~isempty(cb)
+        cb(xs, us, S);
+    end
+    
     ceq = zeros(4*S.N, 1);
-    c = [];
+    c = obstacle_contraints(xs, S);
     
     for i = 1:S.N
         % discrete dynamics
@@ -91,8 +124,28 @@ function [c, ceq] = constraints(z, x0, S)
         ceq(ind + 1 : ind + 4) = xs(:, i+1) - S.f(i, xs(:,i), us(:,i), S);
         
     end
-    
+        
 end
+
+% function for obstacle constraints
+function cobs = obstacle_contraints(xs, S)
+    cobs = [];
+       
+    for i = 1:length(S.obstacles)
+        % grab the obstacle
+        obs_i = S.obstacles{i};
+
+        % calculate distance from circle
+        dist = vecnorm(xs(1:2,:) - obs_i{1}, 2, 1) - obs_i{2};
+        dist = reshape(dist, [], 1);
+        
+        % append the constraints
+        cobs = [cobs; dist];
+
+    end
+
+end
+
 
 % arm cost (just standard quadratic cost
 function [L, Lx, Lxx, Lu, Luu] = arm_L(k, x, u, S)
@@ -188,7 +241,7 @@ function xs = sys_traj(x0, us, S)
 end
 
 % the quadratic total cost
-function J  = cost(xs, us, S)
+function J  = arm_cost(xs, us, S)
 
     N = size(us, 2);
     J = 0;
@@ -215,8 +268,17 @@ function f = plottraj(xs, us, S)
     end
 
     subplot(1,2,1)
+    
+    plot(xs(1,:), xs(2,:), '-b'); hold on;
+    
     % draw all obstacles
-    plot(xs(1,:), xs(2,:), '-b');
+    for i = 1:length(S.obstacles)
+        obs_i = S.obstacles{i};
+        viscircles(obs_i{1}', obs_i{2}, 'Color', 'r');
+        
+    end
+    hold off;
+    
     xlabel('q1')
     ylabel('q2')
     title('arm joint trajectory');
@@ -226,7 +288,8 @@ function f = plottraj(xs, us, S)
 
     subplot(1,2,2)
     plot(0:S.h:S.tf-S.h, us(1,:),0:S.h:S.tf-S.h, us(2,:));
-    xlabel('sec.')
+    xlabel('t (sec.)')
     legend('u_1','u_2')
+    title('control')
 
 end
