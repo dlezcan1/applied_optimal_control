@@ -1,0 +1,4 @@
+[submodule "ACADOtoolkit"]
+	path = ACADOtoolkit
+	url = https://github.com/acado/acado.git
+	branch = stable
