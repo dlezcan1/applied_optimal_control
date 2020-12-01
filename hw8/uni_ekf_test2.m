@@ -1,4 +1,4 @@
-function f = uni_ekf_test
+function f = uni_ekf_test2
 % EN530.603 Extended Kalman filtering of the unicycle with bearing and range measurements
 % 
 % M. Kobilarov , marin(at)jhu.edu
