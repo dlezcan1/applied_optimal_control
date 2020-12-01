@@ -1,3 +1,6 @@
+# MATLAB auto saving
 **/*.m~
+**/*.asv
 
-hw7/hw7*
+# homework 7 un-needed files
+# hw7/hw7*
