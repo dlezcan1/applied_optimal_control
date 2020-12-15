@@ -26,13 +26,13 @@ function [y, varargout] = car_f(x, u, S)
      % Jacobian
      if nargout > 1
          %    x, y,          th,         phi, v
-         F = [1, 0, -v*sth*cphi, -v*cth*sphi, cth*cphi;
-              0, 1,  v*cth*cphi, -v*sth*sphi, sth*sphi;
-              0, 0,           1,           t, sphi;
-              0, 0,           0,           1, 0;
-              0, 0,           0,           0, 1];
+         F = [0, 0, -v*sth*cphi, -v*cth*sphi, cth*cphi;
+              0, 0,  v*cth*cphi, -v*sth*sphi, sth*cphi;
+              0, 0,           0,  v*cphi/S.l, sphi/S.l;
+              0, 0,           0,           0, 0;
+              0, 0,           0,           0, 0];
      	 
-          varargout{1} = F;
+          varargout{1} = eye(5) + S.dt*F;
           
      end
 end

@@ -6,8 +6,13 @@
 
 %% main function
 function u = car_ctrl(t, x, S)
+    if isfield(S, 'w')
+        u = car_ctrl_osc(t, x, S);
+        
+    else
+        car_ctrl_const(t, x, S);
     
-
+    end
 
 end
 
@@ -22,5 +27,7 @@ end
 
 function u = car_ctrl_osc(t, x, S)
     
-    u = [S.ua; S.ud
+    u = S.u0 .* [cos(S.w*t); sin(S.w*t)];
+    
+end
 
