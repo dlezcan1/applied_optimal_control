@@ -7,6 +7,10 @@
 clear;
 
 %% Set-Up
+% saving
+save_dir = "results/";
+save_base = save_dir + "oscillating-ctrl-turning";
+
 % system constants
 S.l = 1;
 S.Re = 6.38e6; % radius of earth in meters
@@ -17,23 +21,23 @@ S.h = @ car_h; % measurement
 
 % time
 S.dt = 0.05;
-t = 0:S.dt:20;
+t = 0:S.dt:50;
 N = length(t);
 
 % known control set-up
 S.w = 1;
-S.u0 = [0;0];
+S.u0 = [-pi/10;0.1];
 
 % initial condition
-x_true0 = [1; 0; pi/2; .2; 1];
+x_true0 = [1; 0; pi/4; 0; 1];
 
 % Kalman-Filter parameters
-S.Q = S.dt^2 * diag([.5, .5, .5, 1, 1]);
-S.R = 0.1 * S.dt * diag([2, 2, .5, .5]);
-P_0 = 0.01 * diag([2, 2, 2, 1, 1]);
+S.Q = S.dt^2 * diag([.1, .1, .1, .1, .1]);
+S.R = 0.1*S.dt * diag([1, 1, 1, 1]);
+P_0 = 0.1 * diag([2, 2, 2, 1, 1]);
 
 % random number generator
-rng(100); % seeding
+rng(10010); % seeding
 
 %% System Modeling
 % set-up data holders
@@ -54,8 +58,8 @@ for i = 1:N-1
    x_true_i = x_true(:, i);
    x_i = x_kalman(:,i);
    P_i = P_kalman(:,:,i);
-%    u_i = S.dt*car_ctrl(t_i, x_true_i, S); % control
-   u_i = S.dt * S.u0;
+   u_i = S.dt*car_ctrl(t_i, x_true_i, S); % control
+%    u_i = S.dt * S.u0;
    
    % Update true state (dynamics)
    x_true_ip1 = S.f(x_true_i, u_i, S) + sqrt(S.Q)*randn(5, 1);
@@ -79,6 +83,9 @@ end
 
 %% Plotting
 fig_car = figure(1);
+out_vid = VideoWriter(save_base + '_car-traj');
+out_vid.FrameRate = 10;
+open(out_vid)
 for i = 1:10:N
     plot(x_true(1,1:i), x_true(2, 1:i), 'b-', 'DisplayName', 'true'); hold on;
     plot(x_kalman(1, 1:i), x_kalman(2, 1:i), 'g-', 'DisplayName', 'kalman'); hold on;
@@ -86,8 +93,11 @@ for i = 1:10:N
     axis equal; grid on;
     title("Car trajectory");
     
+    writeVideo(out_vid, getframe(fig_car));
     pause(0.5);
 end
+close(out_vid);
+fprintf('Saved video: %s\n', save_base + '_car-traj' + out_vid.FileFormat);
 
 fig_traj = figure(2);
 % trajectory
@@ -110,19 +120,31 @@ plot(t, zs(1,:), 'DisplayName', '\phi: measured'); hold on;
 plot(t, zs(2,:), 'DisplayName', 'v: measured'); hold on;
 hold off;
 xlabel('time'); grid on;
-title('odomtery: steering angle and velocity'); legend('Location', 'bestoutside')
+title('odometry: steering angle and velocity'); legend('Location', 'bestoutside')
 
 % error
 fig_err = figure(3);
+subplot(2,1,1);
 plot(t, error_x(1,:), 'DisplayName', 'p_x'); hold on;
 plot(t, error_x(2,:), 'DisplayName', 'p_y'); hold on;
-plot(t, error_x(3,:), 'DisplayName', '\theta'); hold on;
-plot(t, error_x(4,:), 'DisplayName', '\phi'); hold on;
-plot(t, error_x(5,:), 'DisplayName', 'v'); hold on;
 hold off;
 xlabel('time'); grid on;
-title('error'); legend('Location', 'bestoutside')
+title('position error'); legend('Location', 'bestoutside')
 
+subplot(2,1,2);
+plot(t, error_x(3,:), 'DisplayName', '\theta'); hold on;
+plot(t, error_x(4,:), 'DisplayName', '\phi'); hold on;
+hold off;
+xlabel('time'); grid on;
+title('steering and orientation error'); legend('Location', 'bestoutside');
 
 
 %% Saving
+saveas(fig_car, save_base + '_full-traj.png');
+fprintf('Saved figure: %s\n', save_base + '_full-traj.png');
+
+saveas(fig_traj, save_base + '_time-traj.png');
+fprintf('Saved figure: %s\n', save_base + '_time-traj.png');
+
+saveas(fig_err, save_base + '_err.png');
+fprintf('Saved figure: %s\n', save_base + '_err.png');

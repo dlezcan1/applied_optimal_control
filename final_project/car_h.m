@@ -9,6 +9,7 @@
 function [z, varargout] = car_h(x, S)
     [z_odom, H_odom] = car_odom(x, S);
     [z_gps, H_gps] = car_gps(x, S);
+    [z_gps2, H_gps2] = car_gps2(x, S);
     [z_pos, H_pos] = car_pos(x, S);
     
     z = [z_odom; z_gps];
@@ -54,6 +55,22 @@ function [z, varargout] = car_gps(x, S)
           
     end
 end
+
+function [z, varargout] = car_gps2(x, S)
+    px = x(1); py = x(2);
+    z = [atan2(px, S.Re); atan2(py, S.Re)];
+    
+    if nargout > 1
+%         H = zeros(2,5);
+%         H(1,1) = S.Re/(S.Re^2 + px^2);
+%         H(2,2) = S.Re/(S.Re^2 + py^2);
+        H = [S.Re/(S.Re^2 + px^2), 0, 0, 0, 0;
+             0, S.Re/(S.Re^2 + py^2), 0, 0, 0];
+        varargout{1} = H;
+    end
+    
+end
+    
 
 % direct position modeling
 function [z, varargout] = car_pos(x, S)

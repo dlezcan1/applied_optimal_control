@@ -27,7 +27,7 @@ end
 
 function u = car_ctrl_osc(t, x, S)
     
-    u = S.u0 .* [cos(S.w*t); sin(S.w*t)];
+    u = S.u0 .* [cos(S.w*t); cos(S.w*t)];
     
 end
 
