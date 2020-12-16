@@ -26,10 +26,10 @@ N = length(t);
 
 % known control set-up
 S.w = 1;
-S.u0 = [-pi/10;0.1];
+S.u0 = [.005;0.05];
 
 % initial condition
-x_true0 = [1; 0; pi/4; 0; 1];
+x_true0 = [1; 0; pi/4; -pi/10; 1];
 
 % Kalman-Filter parameters
 S.Q = S.dt^2 * diag([.1, .1, .1, .1, .1]);
@@ -58,8 +58,8 @@ for i = 1:N-1
    x_true_i = x_true(:, i);
    x_i = x_kalman(:,i);
    P_i = P_kalman(:,:,i);
-   u_i = S.dt*car_ctrl(t_i, x_true_i, S); % control
-%    u_i = S.dt * S.u0;
+%    u_i = car_ctrl(t_i, x_true_i, S); % control
+   u_i = S.u0;
    
    % Update true state (dynamics)
    x_true_ip1 = S.f(x_true_i, u_i, S) + sqrt(S.Q)*randn(5, 1);
@@ -81,6 +81,11 @@ for i = 1:N-1
 
 end
 
+%% Error summarization
+error_summ = error_stats(error_x);
+disp("Errors:")
+disp(error_summ.tbl)
+
 %% Plotting
 fig_car = figure(1);
 out_vid = VideoWriter(save_base + '_car-traj');
@@ -94,7 +99,7 @@ for i = 1:10:N
     title("Car trajectory");
     
     writeVideo(out_vid, getframe(fig_car));
-    pause(0.5);
+    pause(0.1);
 end
 close(out_vid);
 fprintf('Saved video: %s\n', save_base + '_car-traj' + out_vid.FileFormat);
@@ -148,3 +153,20 @@ fprintf('Saved figure: %s\n', save_base + '_time-traj.png');
 
 saveas(fig_err, save_base + '_err.png');
 fprintf('Saved figure: %s\n', save_base + '_err.png');
+
+save(save_base + ".mat", 'x_kalman', 'error_x', 'P_kalman', 't', 'us', 'x_true',...
+    'error_summ', 'S', 'zs');
+fprintf('Saved data file: %s\n', save_base + ".mat");
+
+writetable(error_summ.tbl, save_base + '_errors.csv', 'WriteRowNames', true);
+fprintf('Saved data table: %s\n', save_base + '_errors.csv');
+
+%% Functions
+function error_summ = error_stats(error_x)
+    error_summ.mean = mean(abs(error_x), 2);
+    error_summ.std = std(abs(error_x), 0, 2);
+    error_summ.err = error_x;
+    error_summ.tbl = table(error_summ.mean, error_summ.std, 'VariableNames',  {'mean', 'std'},...
+        'RowNames', {'px', 'py', 'theta', 'phi', 'v'});
+    
+end
