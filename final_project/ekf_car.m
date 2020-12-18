@@ -26,15 +26,16 @@ N = length(t);
 
 % known control set-up
 S.w = 1;
-S.u0 = [.005;0.05];
+S.u0 = [0.5;0.1];
 
 % initial condition
-x_true0 = [1; 0; pi/4; -pi/10; 1];
+x_true0 = [1; 0; pi/4; 0; 1];
 
 % Kalman-Filter parameters
-S.Q = S.dt^2 * diag([.1, .1, .1, .1, .1]);
-S.R = 0.1*S.dt * diag([1, 1, 1, 1]);
-P_0 = 0.1 * diag([2, 2, 2, 1, 1]);
+S.Q = diag([.1*S.dt, .1*S.dt, .1*S.dt, .1, .1]);
+S.R = 1e-2*diag([1e-3, 1e-3, 1, 1]);
+S.R_sensor = 1e-4*diag([1, 1, .1, .1]);
+P_0 = 1e-3 * diag([1, 1, 1, 1, 1]);
 
 % random number generator
 rng(10010); % seeding
@@ -58,17 +59,18 @@ for i = 1:N-1
    x_true_i = x_true(:, i);
    x_i = x_kalman(:,i);
    P_i = P_kalman(:,:,i);
-%    u_i = car_ctrl(t_i, x_true_i, S); % control
-   u_i = S.u0;
+   u_i = car_ctrl(t_i, x_true_i, S); % control
+%    u_i = S.u0;
+   u_i = u_i + sqrt(S.Q(end-1:end, end-1:end))*randn(2,1);
    
    % Update true state (dynamics)
-   x_true_ip1 = S.f(x_true_i, u_i, S) + sqrt(S.Q)*randn(5, 1);
+   x_true_ip1 = S.f(x_true_i, u_i, S);
    
    % prediction step
    [x_pred_i, P_pred_i] = ekf_predict(x_i, P_i, u_i, S);
    
    % perform measurement and correction
-   z = S.h(x_true_ip1, S) + sqrt(S.R)*randn(4, 1);
+   z = S.h(x_true_ip1, S) + sqrt(S.R_sensor)*randn(4, 1);
    [x_ip1, P_ip1] = ekf_correct(x_pred_i, P_pred_i, z, S);
    
    % add the data
@@ -99,10 +101,10 @@ for i = 1:10:N
     title("Car trajectory");
     
     writeVideo(out_vid, getframe(fig_car));
-    pause(0.1);
+    pause(0.05);
 end
 close(out_vid);
-fprintf('Saved video: %s\n', save_base + '_car-traj' + out_vid.FileFormat);
+fprintf('Saved video: %s\n', save_base + '_car-traj.' + out_vid.FileFormat);
 
 fig_traj = figure(2);
 % trajectory
